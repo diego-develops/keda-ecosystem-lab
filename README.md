@@ -43,6 +43,31 @@ número de réplicas en función de la demanda.
 | Helm | 3.x | `helm version` |
 | Java (solo para compilación local, opcional) | 25 | `java -version` |
 
+Verifica tu entorno antes de empezar (no modifica nada):
+
+```bash
+# Linux / macOS / WSL / Git Bash
+./scripts/verificar-prerrequisitos.sh
+```
+
+```powershell
+# Windows (PowerShell)
+.\scripts\verificar-prerrequisitos.ps1
+```
+
+```bat
+REM Windows (cmd.exe)
+scripts\verificar-prerrequisitos.cmd
+```
+
+> ⚠️ **Verifica tu contexto de kubectl**: `kubectl config current-context`
+> debe apuntar a un clúster **local** (`docker-desktop`, `kind-keda-lab`...).
+> Si tienes clústeres reales configurados (AKS, EKS, GKE...) el laboratorio
+> podría aplicarse ahí. El script de verificación lo detecta.
+
+> **¿Sin Docker Desktop** (WSL/Linux con podman)? Usa
+> [07-entorno-kind-podman.md](07-entorno-kind-podman.md).
+
 > **Docker Desktop**: habilita Kubernetes en *Settings → Kubernetes → Enable
 > Kubernetes* y espera a que el nodo esté `Ready`.
 
@@ -68,6 +93,8 @@ número de réplicas en función de la demanda.
 | [04-escalado-prometheus.md](04-escalado-prometheus.md) | (Opcional) Escalado por req/s promedio con Prometheus |
 | [05-solucion-de-problemas.md](05-solucion-de-problemas.md) | Resolución de problemas |
 | [06-ingenieria-de-capacidad.md](06-ingenieria-de-capacidad.md) | Teoría: cómo se determinan umbrales y valores de escalado |
+| [07-entorno-kind-podman.md](07-entorno-kind-podman.md) | Entorno alternativo sin Docker Desktop: kind + podman |
+| [08-evidencias.md](08-evidencias.md) | Capturas de pantalla a tomar, cómo armar el PDF y cómo subirlo |
 
 Este README es la versión monolítica de la misma práctica; las guías
 numeradas la desglosan paso a paso.
@@ -84,6 +111,8 @@ keda-ecosystem-lab/
 ├── 04-escalado-prometheus.md  # (opcional)
 ├── 05-solucion-de-problemas.md
 ├── 06-ingenieria-de-capacidad.md # Teoría de calibración de escalado
+├── 07-entorno-kind-podman.md  # Entorno alternativo (kind + podman)
+├── 08-evidencias.md           # Capturas, PDF y entrega de evidencias
 ├── elasticity-api/            # Microservicio Spring Boot 4.1 + Java 25 + Gradle 9.9
 │   ├── Dockerfile             # Build multi-etapa (gradle → temurin-jre)
 │   ├── build.gradle.kts
@@ -97,7 +126,10 @@ keda-ecosystem-lab/
 └── scripts/
     ├── carga.ps1              # Generador de carga (PowerShell)
     ├── carga.cmd              # Generador de carga (cmd.exe)
-    └── carga.sh               # Generador de carga (bash)
+    ├── carga.sh               # Generador de carga (bash)
+    ├── verificar-prerrequisitos.ps1  # Verificación de entorno (PowerShell)
+    ├── verificar-prerrequisitos.cmd  # Verificación de entorno (cmd.exe)
+    └── verificar-prerrequisitos.sh   # Verificación de entorno (Linux/macOS)
 ```
 
 ---
@@ -280,8 +312,12 @@ CONCURRENCIA=20 DURACION=300 ./scripts/carga.sh
 2. Con carga sostenida el deployment llega hasta `maxReplicaCount: 8`.
 3. Mientras escala, las respuestas de `/api/hello` rotan entre varios
    hostnames: el Service balancea entre todas las réplicas.
-4. **Detén la carga** (Ctrl+C o espera a que termine) → tras el
-   `cooldownPeriod` (~2 min) el deployment vuelve a **1 réplica**.
+4. **Detén la carga** (Ctrl+C o espera a que termine) → el deployment
+   vuelve a **1 réplica** en ~5-6 min (medido en kind). La bajada la
+   gobierna `behavior.scaleDown` (ventana de estabilización de 120 s y
+   reducción máxima del 50 % por minuto). Con el scaler `cpu` y
+   `minReplicaCount: 1`, `cooldownPeriod` no aplica: KEDA lo avisa con un
+   warning al crear el ScaledObject, inofensivo.
 
 Ese ciclo *crecer con la demanda y decrecer al cesarla* es la elasticidad.
 
