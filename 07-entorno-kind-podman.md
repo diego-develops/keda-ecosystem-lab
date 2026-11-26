@@ -1,5 +1,8 @@
 # Paso 7 — Entorno alternativo: kind + podman (WSL / Linux sin Docker Desktop)
 
+> 💡 **Atajo**: `scripts/setup.sh` (`setup.ps1` / `setup.cmd` en Windows)
+> automatiza todo lo de esta guía. Esta página es el paso a paso manual.
+
 Las guías 00–06 asumen **Docker Desktop con Kubernetes**. Si trabajas en
 WSL/Linux sin Docker, usa **kind** (Kubernetes en contenedores) con
 **podman**. Probado con kind 0.24, podman 5.7, helm 3.16 y KEDA 2.21.0.
@@ -47,16 +50,11 @@ cp /tmp/linux-amd64/helm ~/.local/bin/helm      # ~/.local/bin debe estar en el 
 
 kind: https://kind.sigs.k8s.io/docs/user/quick-start/#installation
 
-## 1. Configurar podman (una sola vez)
+## 1. podman: nombres de imagen
 
-podman no resuelve nombres cortos de imagen (`gradle:9-jdk25`) y el
-`docker build` del Dockerfile falla con
-`short-name ... did not resolve to an alias`. Solución:
-
-```bash
-mkdir -p ~/.config/containers
-echo 'unqualified-search-registries = ["docker.io"]' > ~/.config/containers/registries.conf
-```
+Los `FROM` del Dockerfile ya usan nombres completos (`docker.io/library/...`),
+así que **no hace falta configurar `registries.conf`**. (Versiones anteriores
+fallaban con `short-name ... did not resolve to an alias`.)
 
 ## 2. Crear el clúster
 
@@ -116,7 +114,7 @@ Continúa con [03-scaledobject-y-carga.md](03-scaledobject-y-carga.md)
 
 | Síntoma | Causa | Acción |
 |---|---|---|
-| `short-name "gradle:9-jdk25" did not resolve` | podman sin registro por defecto | Paso 1 |
+| `short-name ... did not resolve` | Dockerfile antiguo con nombres cortos | Actualiza el repo (los `FROM` ya son `docker.io/library/...`) |
 | Pod en `ImagePullBackOff` / `ErrImagePull` | Imagen no cargada en kind o con otro nombre | Repite el paso 4 (tag `docker.io/library/...`) |
 | `"/" is not a shared mount` (warning de podman) | Rootless en WSL | Inofensivo |
 | `kind` pide el provider | Falta la variable | `export KIND_EXPERIMENTAL_PROVIDER=podman` |

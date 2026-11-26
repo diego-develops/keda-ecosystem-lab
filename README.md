@@ -43,6 +43,38 @@ número de réplicas en función de la demanda.
 | Helm | 3.x | `helm version` |
 | Java (solo para compilación local, opcional) | 25 | `java -version` |
 
+## Inicio rápido: un script para todo
+
+`setup` verifica los prerrequisitos, instala lo que falte **sin
+administrador** (kubectl, helm y kind, con checksum), crea el clúster,
+instala metrics-server y KEDA, construye la imagen y despliega la app con su
+ScaledObject. Es idempotente (lo ya hecho se omite). `cleanup` borra solo lo
+que `setup` creó.
+
+| Sistema | Instalar y preparar | Limpiar |
+|---|---|---|
+| Linux / macOS / WSL / Git Bash | `./scripts/setup.sh` | `./scripts/cleanup.sh` |
+| Windows (PowerShell) | `.\scripts\setup.ps1` | `.\scripts\cleanup.ps1` |
+| Windows (cmd.exe) | `scripts\setup.cmd` | `scripts\cleanup.cmd` |
+
+Opciones útiles: `--solo-verificar` (`-SoloVerificar`) solo comprueba;
+`--sin-scaledobject` (`-SinScaledObject`) deja todo listo para aplicar el
+ScaledObject en vivo; `--yes` (`-Yes`) sin preguntas; `--kind` (`-Kind`)
+fuerza kind; en cleanup, `--todo` (`-Todo`) quita también las herramientas
+que `setup` instaló.
+
+> Lo único que `setup` **no** instala es **Docker Desktop o podman** (requieren
+> privilegios). Si el script no encuentra un runtime, te lo indica. Con Docker
+> Desktop con Kubernetes habilitado usa ese clúster; si no, crea uno con kind.
+> Solo se borra lo que `setup` instaló (registrado en `~/.keda-lab-state`).
+> Probado en Linux/WSL (flujo completo) y Windows PowerShell (instaladores y
+> cleanup); **no probado en macOS**.
+
+Las guías numeradas de abajo son el **paso a paso manual** para entender qué
+hace el script.
+
+## Verificación manual de prerrequisitos
+
 Verifica tu entorno antes de empezar (no modifica nada):
 
 ```bash
@@ -127,6 +159,8 @@ keda-ecosystem-lab/
     ├── carga.ps1              # Generador de carga (PowerShell)
     ├── carga.cmd              # Generador de carga (cmd.exe)
     ├── carga.sh               # Generador de carga (bash)
+    ├── setup.sh / .ps1 / .cmd        # Instala y prepara todo el entorno
+    ├── cleanup.sh / .ps1 / .cmd      # Limpia lo que instaló setup
     ├── verificar-prerrequisitos.ps1  # Verificación de entorno (PowerShell)
     ├── verificar-prerrequisitos.cmd  # Verificación de entorno (cmd.exe)
     └── verificar-prerrequisitos.sh   # Verificación de entorno (Linux/macOS)
