@@ -4,6 +4,10 @@
 FROM docker.io/library/gradle:9-jdk25 AS build
 WORKDIR /home/gradle/app
 
+# Redes sin ruta IPv6 (podman/WSL, VPN): Java debe preferir direcciones IPv4
+# para resolver dependencias de Gradle durante el build.
+ENV JAVA_TOOL_OPTIONS="-Djava.net.preferIPv4Addresses=true"
+
 COPY build.gradle.kts settings.gradle.kts gradle.properties ./
 RUN gradle --no-daemon dependencies
 

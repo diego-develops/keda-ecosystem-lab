@@ -69,12 +69,20 @@ function Set-State($k, $v) {
 
 $arch = if ($env:PROCESSOR_ARCHITECTURE -eq 'ARM64') { 'arm64' } else { 'amd64' }
 
+# Descarga con 4 reintentos; muestra la causa real si falla
+function Get-Download($url, $dest, $msg) {
+    $ultimo = ''
+    foreach ($i in 1..4) {
+        try { Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $dest -ErrorAction Stop; return }
+        catch { $ultimo = $_.Exception.Message; Start-Sleep -Seconds (2 * $i) }
+    }
+    Fail "$msg`n        Causa: $ultimo"
+}
+
 function Get-Verified($url, $shaUrl, $dest) {
-    try { Invoke-WebRequest -UseBasicParsing -Uri $url -OutFile $dest -ErrorAction Stop }
-    catch { Fail "No se pudo descargar $url (¿proxy o sin conexión? Descárgalo manualmente)." }
+    Get-Download $url $dest "No se pudo descargar $url (¿proxy o sin conexión? Descárgalo manualmente)."
     $shaFile = "$dest.sha"
-    try { Invoke-WebRequest -UseBasicParsing -Uri $shaUrl -OutFile $shaFile -ErrorAction Stop }
-    catch { Fail "No se pudo descargar el checksum de $url" }
+    Get-Download $shaUrl $shaFile "No se pudo descargar el checksum de $url"
     $esperado = ((Get-Content $shaFile -Raw).Trim() -split '\s+')[0].ToLower()
     $actual = (Get-FileHash $dest -Algorithm SHA256).Hash.ToLower()
     Remove-Item $shaFile -Force
@@ -189,8 +197,13 @@ $existente = helm --kube-context $C list -A -q --filter '^keda$' 2>$null
 if ($existente) {
     Write-Host '  KEDA ya instalado en el clúster: se reutiliza'
 } else {
-    helm repo add kedacore https://kedacore.github.io/charts 2>&1 | Out-Null
-    helm repo update 2>&1 | Out-Null
+    $ok = $false
+    foreach ($i in 1..4) {
+        $out = helm repo add kedacore https://kedacore.github.io/charts --force-update 2>&1
+        if ($LASTEXITCODE -eq 0) { helm repo update kedacore 2>&1 | Out-Null; if ($LASTEXITCODE -eq 0) { $ok = $true; break } }
+        Start-Sleep -Seconds (2 * $i)
+    }
+    if (-not $ok) { Fail "No se pudo añadir el repositorio de KEDA: $out" }
     helm --kube-context $C install keda kedacore/keda -n keda --create-namespace --version $KedaVersion | Out-Null
     Check 'Falló helm install keda.'
     Set-State INSTALLED_KEDA 1

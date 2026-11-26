@@ -178,7 +178,12 @@ info "5/8 KEDA $KEDA_VERSION"
 if [ -n "$(helm --kube-context "$C" list -A -q --filter '^keda$' 2>/dev/null)" ]; then
     echo "  KEDA ya instalado en el clúster: se reutiliza"
 else
-    helm repo add kedacore https://kedacore.github.io/charts >/dev/null 2>&1; helm repo update >/dev/null 2>&1
+    ok=0
+    for i in 1 2 3 4; do
+        if helm repo add kedacore https://kedacore.github.io/charts --force-update >/dev/null 2>&1 && helm repo update kedacore >/dev/null 2>&1; then ok=1; break; fi
+        sleep $((2 * i))
+    done
+    [ "$ok" = 1 ] || fail "No se pudo añadir el repositorio de KEDA (¿red/proxy?)."
     helm --kube-context "$C" install keda kedacore/keda -n keda --create-namespace --version "$KEDA_VERSION" >/dev/null || fail "Falló helm install keda."
     state_set INSTALLED_KEDA 1
 fi
